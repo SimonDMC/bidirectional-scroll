@@ -1,92 +1,77 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import "./App.css";
+import Item from "./Item";
 
 function App() {
+    const [middleNum, setMiddleNum] = useState(0);
+
     useEffect(() => {
-        // check active element by investigating which item is in the middle of the container
-        // since safari doesn't reliably fire touchStart
-        const boundingBox = document.getElementById("container")!.getBoundingClientRect()!;
-        const midPoint = [(boundingBox.right + boundingBox.left) / 2, (boundingBox.top + boundingBox.bottom) / 2];
-        console.log(midPoint);
+        const container = document.getElementById("container")!;
+        const center = document.getElementById("center")!;
+        const width = center.clientWidth;
+        container.scrollLeft = width * 2;
 
-        let lastSelectedElement = "0";
-        document.getElementById("0")?.scrollIntoView();
+        let x: number;
+        let lastOffset = 0;
+        let offset = 0;
+        let innerMiddleNum = 0;
 
-        const scroll = () => {
-            const el = document.elementFromPoint(midPoint[0], midPoint[1])!;
-            const parent = el.parentElement!;
+        function touchstart(e: TouchEvent) {
+            e.preventDefault();
 
-            // snap out of scroll nesting of doom
-            if ((el.id == "-1" && parent.scrollLeft < 0) || (el.id == "1" && parent.scrollLeft < 0)) {
-                parent.scrollLeft = 0;
-                document.getElementById("0")?.scrollIntoView({ behavior: "smooth" });
-            }
-
-            // only process when the selected element has changed
-            if (el.id == lastSelectedElement) return;
-            lastSelectedElement = el.id;
-
-            //document.getElementById("touched")!.innerText = el.id + ", " + ++a;
-
-            // get child index
-            const index = Array.from(parent.children).indexOf(el);
-
-            if (index == Array.from(parent.children).length - 2) {
-                // create element after
-                const item = document.createElement("div");
-                item.classList.add("item");
-                const newId = parent.classList.contains("backward") ? parseInt(el.id) - 2 : parseInt(el.id) + 2;
-                item.innerText = `${newId}`;
-                item.id = `${newId}`;
-
-                parent.appendChild(item);
-                // TODO: figure out negative scrolling in chrome
-            }
-        };
-
-        for (const container of document.getElementsByClassName("directionalScroller")) {
-            container.addEventListener("scroll", scroll);
+            x = e.touches[0].clientX;
         }
-        document.getElementById("prev")!.onclick = () => {
-            document.getElementById(document.elementFromPoint(midPoint[0], midPoint[1]).id - 1)!.scrollIntoView({ behavior: "smooth" });
-        };
-        document.getElementById("next")!.onclick = () => {
-            document
-                .getElementById(parseInt(document.elementFromPoint(midPoint[0], midPoint[1]).id) + 1)!
-                .scrollIntoView({ behavior: "smooth" });
-        };
 
-        return () => {
-            for (const container of document.getElementsByClassName("directionalScroller")) {
-                container.removeEventListener("scroll", scroll);
+        function touchmove(e: TouchEvent) {
+            e.preventDefault();
+
+            lastOffset = offset + e.touches[0].clientX - x;
+
+            if (lastOffset > width) {
+                flushSync(() => {
+                    setMiddleNum(--innerMiddleNum);
+                });
+                offset -= width;
+                lastOffset -= width;
+                container.scrollLeft = width * 2;
+            } else if (lastOffset < -width) {
+                flushSync(() => {
+                    setMiddleNum(++innerMiddleNum);
+                });
+                offset += width;
+                lastOffset += width;
+                container.scrollLeft = width * 2;
             }
+
+            container.style.setProperty("--offset", `${lastOffset}px`);
+        }
+
+        function touchend(e: TouchEvent) {
+            e.preventDefault();
+
+            offset = lastOffset;
+        }
+
+        container.addEventListener("touchstart", touchstart, { passive: false });
+        container.addEventListener("touchmove", touchmove, { passive: false });
+        container.addEventListener("touchend", touchend, { passive: false });
+        return () => {
+            container.removeEventListener("touchstart", touchstart);
+            container.removeEventListener("touchmove", touchmove);
+            container.removeEventListener("touchend", touchend);
         };
-    });
+    }, []);
 
     return (
         <>
             <div id="touched"></div>
             <div id="container">
-                <div className="directionalScroller backward">
-                    <div className="scrollStopper"></div>
-                    <div className="item" id="-1">
-                        -1
-                    </div>
-                    <div className="item" id="-2">
-                        -2
-                    </div>
-                </div>
-                <div className="item" id="0">
-                    0
-                </div>
-                <div className="directionalScroller forward">
-                    <div className="item" id="1">
-                        1
-                    </div>
-                    <div className="item" id="2">
-                        2
-                    </div>
-                </div>
+                <Item number={middleNum - 2} />
+                <Item number={middleNum - 1} />
+                <Item number={middleNum} id="center" />
+                <Item number={middleNum + 1} />
+                <Item number={middleNum + 2} />
             </div>
             <div className="controls">
                 <span id="prev">←</span>

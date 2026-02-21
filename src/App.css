@@ -17,33 +17,7 @@
   scroll-snap-stop: always;
   scrollbar-width: none;
 
-  /* display: grid;
-  grid-auto-flow: column; */
   display: flex;
-}
-
-.directionalScroller {
-  min-width: 3em;
-  width: 3em;
-  height: 3em;
-
-  overflow-x: auto;
-  overscroll-behavior-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-snap-stop: always;
-  scrollbar-width: none;
-
-  display: flex;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-.directionalScroller.backward {
-  transform: scale(-1, 1);
-}
-
-.directionalScroller.backward .item {
-  transform: scale(-1, 1);
 }
 
 .item {
@@ -55,6 +29,7 @@
   justify-content: center;
   align-items: center;
   user-select: none;
+  translate: var(--offset) 0;
 }
 
 .item, .scrollStopper {
