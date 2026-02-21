@@ -7,7 +7,8 @@ function App() {
     const [middleNum, setMiddleNum] = useState(0);
 
     useEffect(() => {
-        const VELOCITY_CAP = 7;
+        const VELOCITY_THRESHOLD = 2.5;
+        const SNAP_SPEED = 0.15;
 
         const container = document.getElementById("container")!;
         const center = document.getElementById("center")!;
@@ -17,61 +18,68 @@ function App() {
         let x: number;
         let lastOffset = 0;
         let offset = 0;
-        let innerMiddleNum = 0;
+        let internalMiddleNum = 0;
         let velocity = 0;
-        let momentumTimeout: number | null = null;
+        let animationFrameId: number | null = null;
 
         function touchstart(e: TouchEvent) {
-            e.preventDefault();
-
             x = e.touches[0].clientX;
-            if (momentumTimeout) clearTimeout(momentumTimeout);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
         }
 
         function touchmove(e: TouchEvent) {
             e.preventDefault();
 
             velocity = lastOffset - (offset + e.touches[0].clientX - x);
-            if (velocity < -VELOCITY_CAP) velocity = -VELOCITY_CAP;
-            if (velocity > VELOCITY_CAP) velocity = VELOCITY_CAP;
-
             lastOffset = offset + e.touches[0].clientX - x;
             calculateOffset();
         }
 
         function touchend(e: TouchEvent) {
             e.preventDefault();
-
             offset = lastOffset;
 
-            // velocity calculation
-            const momentum = () => {
-                document.getElementById("touched")!.innerText = velocity;
-                lastOffset -= velocity;
-                velocity /= 1.05;
+            // if we're over the edge or swiped with enough velocity, clear the gap
+            let targetOffset = 0;
+
+            if (velocity < -VELOCITY_THRESHOLD || lastOffset > width / 2) {
+                targetOffset = width;
+            } else if (velocity > VELOCITY_THRESHOLD || lastOffset < -width / 2) {
+                targetOffset = -width;
+            }
+
+            // linear interpolation
+            const glide = () => {
+                lastOffset += (targetOffset - lastOffset) * SNAP_SPEED;
+
+                // snap and stop when <0.5px away
+                if (Math.abs(targetOffset - lastOffset) < 0.5) {
+                    lastOffset = targetOffset;
+                    calculateOffset();
+                    offset = lastOffset;
+                    animationFrameId = null;
+                    return;
+                }
+
                 calculateOffset();
                 offset = lastOffset;
-                if (Math.abs(velocity) > 0.1) {
-                    momentumTimeout = setTimeout(momentum, 1);
-                } else {
-                    momentumTimeout = null;
-                }
+                animationFrameId = requestAnimationFrame(glide);
             };
 
-            momentumTimeout = setTimeout(momentum, 1);
+            glide();
         }
 
         function calculateOffset() {
-            if (lastOffset > width) {
+            if (lastOffset >= width) {
                 flushSync(() => {
-                    setMiddleNum(--innerMiddleNum);
+                    setMiddleNum(--internalMiddleNum);
                 });
                 offset -= width;
                 lastOffset -= width;
                 container.scrollLeft = width * 2;
-            } else if (lastOffset < -width) {
+            } else if (lastOffset <= -width) {
                 flushSync(() => {
-                    setMiddleNum(++innerMiddleNum);
+                    setMiddleNum(++internalMiddleNum);
                 });
                 offset += width;
                 lastOffset += width;
