@@ -1,0 +1,79 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+#container {
+  font-size: 6em;
+  border: 3px solid green;
+  width: 3em;
+  height: 3em;
+
+  overflow-x: auto;
+  overscroll-behavior-x: none;
+  scroll-snap-type: x mandatory;
+  scroll-snap-stop: always;
+  scrollbar-width: none;
+
+  /* display: grid;
+  grid-auto-flow: column; */
+  display: flex;
+}
+
+.directionalScroller {
+  min-width: 3em;
+  width: 3em;
+  height: 3em;
+
+  overflow-x: auto;
+  overscroll-behavior-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-snap-stop: always;
+  scrollbar-width: none;
+
+  display: flex;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.directionalScroller.backward {
+  transform: scale(-1, 1);
+}
+
+.directionalScroller.backward .item {
+  transform: scale(-1, 1);
+}
+
+.item {
+  min-width: 3em;
+  height: 3em;
+  background-color: #000;
+  outline: 1px solid gray;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+}
+
+.item, .scrollStopper {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.scrollStopper {
+  min-width: 1px;
+}
+
+.item#initial {
+  scroll-initial-target: nearest;
+}
+
+.controls {
+  font-size: 2em;
+  font-family: Inter;
+  display: flex;
+  gap: 7em;
+  justify-content: center;
+}
