@@ -12,9 +12,6 @@
   height: 3em;
 
   overflow-x: auto;
-  overscroll-behavior-x: none;
-  scroll-snap-type: x mandatory;
-  scroll-snap-stop: always;
   scrollbar-width: none;
 
   display: flex;
@@ -29,20 +26,6 @@
   justify-content: center;
   align-items: center;
   user-select: none;
-  translate: var(--offset) 0;
-}
-
-.item, .scrollStopper {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-.scrollStopper {
-  min-width: 1px;
-}
-
-.item#initial {
-  scroll-initial-target: nearest;
 }
 
 .controls {

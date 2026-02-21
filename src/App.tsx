@@ -7,6 +7,8 @@ function App() {
     const [middleNum, setMiddleNum] = useState(0);
 
     useEffect(() => {
+        const VELOCITY_CAP = 7;
+
         const container = document.getElementById("container")!;
         const center = document.getElementById("center")!;
         const width = center.clientWidth;
@@ -16,18 +18,50 @@ function App() {
         let lastOffset = 0;
         let offset = 0;
         let innerMiddleNum = 0;
+        let velocity = 0;
+        let momentumTimeout: number | null = null;
 
         function touchstart(e: TouchEvent) {
             e.preventDefault();
 
             x = e.touches[0].clientX;
+            if (momentumTimeout) clearTimeout(momentumTimeout);
         }
 
         function touchmove(e: TouchEvent) {
             e.preventDefault();
 
-            lastOffset = offset + e.touches[0].clientX - x;
+            velocity = lastOffset - (offset + e.touches[0].clientX - x);
+            if (velocity < -VELOCITY_CAP) velocity = -VELOCITY_CAP;
+            if (velocity > VELOCITY_CAP) velocity = VELOCITY_CAP;
 
+            lastOffset = offset + e.touches[0].clientX - x;
+            calculateOffset();
+        }
+
+        function touchend(e: TouchEvent) {
+            e.preventDefault();
+
+            offset = lastOffset;
+
+            // velocity calculation
+            const momentum = () => {
+                document.getElementById("touched")!.innerText = velocity;
+                lastOffset -= velocity;
+                velocity /= 1.05;
+                calculateOffset();
+                offset = lastOffset;
+                if (Math.abs(velocity) > 0.1) {
+                    momentumTimeout = setTimeout(momentum, 1);
+                } else {
+                    momentumTimeout = null;
+                }
+            };
+
+            momentumTimeout = setTimeout(momentum, 1);
+        }
+
+        function calculateOffset() {
             if (lastOffset > width) {
                 flushSync(() => {
                     setMiddleNum(--innerMiddleNum);
@@ -41,16 +75,9 @@ function App() {
                 });
                 offset += width;
                 lastOffset += width;
-                container.scrollLeft = width * 2;
             }
 
-            container.style.setProperty("--offset", `${lastOffset}px`);
-        }
-
-        function touchend(e: TouchEvent) {
-            e.preventDefault();
-
-            offset = lastOffset;
+            container.scrollLeft = width * 2 - lastOffset;
         }
 
         container.addEventListener("touchstart", touchstart, { passive: false });
