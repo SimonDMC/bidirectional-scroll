@@ -2,10 +2,23 @@ import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import "./App.css";
 import Item from "./Item";
+import { LeftArrowIcon } from "./icons/LeftArrow";
+import { RightArrowIcon } from "./icons/RightArrow";
+import { GithubIcon } from "./icons/Github";
 
 function App() {
+    // DEMO-RELEVANT TS STARTS HERE
+
+    // this number represents the "index" of the middle element, expected to be passed down
+    // to Item components; in this primitive example, the index is rendered directly, but in
+    // a more realistic use-case, it could be used to index e.g. items in a finite but wrapping
+    // list, or months in a calendar
     const [middleNum, setMiddleNum] = useState(0);
 
+    // keeping the entire logic in a useEffect is "unreactful" but since it's entirely
+    // implementation details that are irrelevant for any other component (apart from middleNum,
+    // which is exposed) it makes sense for the sake of simplicity and eliminating the
+    // performance overhead react hooks impose
     useEffect(() => {
         const VELOCITY_THRESHOLD = 2.5;
         const SNAP_SPEED = 0.15;
@@ -15,22 +28,36 @@ function App() {
         const width = center.clientWidth;
         container.scrollLeft = width * 2;
 
-        let x: number;
+        // x position of current touch start, so we can calculate how much we've moved by
+        let x = 0;
+        // offset last frame, tracked since it cannot be recalculated on touchEnd
         let lastOffset = 0;
+        // scroll offset already present before touching and moving the scroller, also used in
+        // offset calculations
         let offset = 0;
+        // middleNum, but tracked as a standard variable, since useEffect doesn't receive state
+        // updates
         let internalMiddleNum = 0;
+        // velocity with which the last swipe was released
         let velocity = 0;
+        // currently ongoing animation frame id, used to cancel when another swipe is initiated
+        // during the glide
         let animationFrameId: number | null = null;
+        // whether the container was grabbed before finishing the last animation, and if so,
+        // in which direction; tracked since elements haven't been moved over yet, and as such,
+        // swiping in the opposite direction would cause it to move over by two
         let grabIndex = 0;
-        let targetOffset: number;
+        // the scroll offset we are animating to
+        let targetOffset = 0;
 
-        function touchstart(e: TouchEvent) {
-            x = e.touches[0].clientX;
+        function grabstart(grabX: number) {
+            x = grabX;
+            // cancel gliding if we grab before animation finishes
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
-            // detect grabbing swiper before lerp is finished (before elements swap over)
-            // otherwise, swiping in one direction and then swiping back causes it to skip over
-            // an element, as we still have the old one selected
+            // detect grabbing swiper before glide is finished (before elements shift over)
+            // if we don't do this, swiping in one direction and then swiping back causes it to
+            // skip over an element, as we still have the old one selected
             if (lastOffset > width / 2) {
                 grabIndex = -1;
             } else if (lastOffset < -width / 2) {
@@ -40,16 +67,14 @@ function App() {
             }
         }
 
-        function touchmove(e: TouchEvent) {
-            e.preventDefault();
-
-            velocity = lastOffset - (offset + e.touches[0].clientX - x);
-            lastOffset = offset + e.touches[0].clientX - x;
+        function grabmove(grabX: number) {
+            // the velocity is the x-delta between the last two known touch positions
+            velocity = lastOffset - (offset + grabX - x);
+            lastOffset = offset + grabX - x;
             calculateOffset();
         }
 
-        function touchend(e: TouchEvent) {
-            e.preventDefault();
+        function grabend() {
             offset = lastOffset;
 
             targetOffset = 0;
@@ -70,7 +95,23 @@ function App() {
                 targetOffset = -width;
             }
 
-            animateSwipe();
+            if ((document.getElementById("notchedToggle") as HTMLInputElement).checked) {
+                animateSwipe();
+            } else {
+                const momentum = () => {
+                    lastOffset -= velocity;
+                    velocity /= 1.03;
+                    calculateOffset();
+                    offset = lastOffset;
+                    if (Math.abs(velocity) > 0.1) {
+                        animationFrameId = requestAnimationFrame(momentum);
+                    } else {
+                        animationFrameId = null;
+                    }
+                };
+
+                if (Math.abs(velocity) > 1) animationFrameId = requestAnimationFrame(momentum);
+            }
         }
 
         function animateSwipe() {
@@ -95,8 +136,9 @@ function App() {
             glide();
         }
 
-        // returns whether shift happened
         function calculateOffset() {
+            // if we crossed over the full width of the element in either direction, invisibly
+            // reset scroll position and shift over the elements
             if (lastOffset >= width) {
                 flushSync(() => {
                     setMiddleNum(--internalMiddleNum);
@@ -114,40 +156,105 @@ function App() {
             }
 
             container.scrollLeft = width * 2 - lastOffset;
+            updateDebug();
         }
 
-        container.addEventListener("touchstart", touchstart, { passive: false });
-        container.addEventListener("touchmove", touchmove, { passive: false });
-        container.addEventListener("touchend", touchend, { passive: false });
-
         document.getElementById("prev")!.onclick = () => {
-            targetOffset = width;
             // if arrow is clicked while a swipe animation is already happening, cancel it
-            // and start a new one which goes an item further
+            // and start a new one
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 targetOffset += width;
+            } else {
+                targetOffset = width;
             }
             animateSwipe();
         };
         document.getElementById("next")!.onclick = () => {
-            targetOffset = -width;
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 targetOffset -= width;
+            } else {
+                targetOffset = -width;
             }
             animateSwipe();
         };
 
-        return () => {
-            container.removeEventListener("touchstart", touchstart);
-            container.removeEventListener("touchmove", touchmove);
-            container.removeEventListener("touchend", touchend);
+        // DEMO-RELEVANT TS ENDS HERE
+
+        container.ontouchstart = (e: TouchEvent) => {
+            // ignore if it's not the first touch point
+            if (e.touches.length > 1) return;
+            grabstart(e.touches[0].clientX);
         };
+        container.ontouchmove = (e: TouchEvent) => {
+            e.preventDefault();
+            grabmove(e.touches[0].clientX);
+        };
+        container.ontouchend = (e: TouchEvent) => {
+            // ignore if it's not the last touch point
+            if (e.touches.length > 0) return;
+            grabend();
+        };
+
+        // is mouse held down?
+        let held = false;
+        container.onmousedown = (e: MouseEvent) => {
+            if (!(document.getElementById("mouseToggle") as HTMLInputElement).checked) return;
+            held = true;
+            grabstart(e.clientX);
+        };
+        document.onmousemove = (e: MouseEvent) => {
+            if (!(document.getElementById("mouseToggle") as HTMLInputElement).checked) return;
+            e.preventDefault();
+            if (held) grabmove(e.clientX);
+        };
+        document.onmouseup = () => {
+            if (!(document.getElementById("mouseToggle") as HTMLInputElement).checked) return;
+            if (held) grabend();
+            held = false;
+        };
+
+        function updateDebug() {
+            document.getElementById("xDebug")!.innerText = x.toFixed(2);
+            document.getElementById("lastOffsetDebug")!.innerText = lastOffset.toFixed(2);
+            document.getElementById("offsetDebug")!.innerText = offset.toFixed(2);
+            document.getElementById("internalMiddleNumDebug")!.innerText = `${internalMiddleNum}`;
+            document.getElementById("velocityDebug")!.innerText = velocity.toFixed(2);
+            document.getElementById("animationFrameIdDebug")!.innerText = `${animationFrameId}`;
+            document.getElementById("grabIndexDebug")!.innerText = `${grabIndex}`;
+            document.getElementById("targetOffsetDebug")!.innerText = `${targetOffset}`;
+        }
     }, []);
 
     return (
         <>
+            <h1>Bi-directional Scroll Demo</h1>
+            <div className="settings">
+                <div className="setting">
+                    <input type="checkbox" name="debugToggle" id="debugToggle" />
+                    <label htmlFor="debugToggle" title="Show debug data">
+                        Debug
+                    </label>
+                </div>
+                <div className="setting">
+                    <input type="checkbox" name="notchedToggle" id="notchedToggle" defaultChecked />
+                    <label
+                        htmlFor="notchedToggle"
+                        title="Stop at every item and disallow swiping more than one at a time (Note: This demo was built with the primary use-case of notched scrolling in mind, the standard scrolling calculation is not polished and would likely require more work to be usable)"
+                    >
+                        Notched
+                    </label>
+                </div>
+
+                <div className="setting">
+                    <input type="checkbox" name="mouseToggle" id="mouseToggle" defaultChecked />
+                    <label htmlFor="mouseToggle" title="Use mouse dragging to swipe between elements">
+                        Mouse
+                    </label>
+                </div>
+            </div>
+            {/* DEMO-RELEVANT TSX STARTS HERE */}
             <div id="container">
                 <Item number={middleNum - 2} />
                 <Item number={middleNum - 1} />
@@ -155,19 +262,39 @@ function App() {
                 <Item number={middleNum + 1} />
                 <Item number={middleNum + 2} />
             </div>
+            {/* DEMO-RELEVANT TSX ENDS HERE */}
             <div className="controls">
-                <svg id="prev" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-                    <path
-                        fill="currentColor"
-                        d="m9.55 12l7.35 7.35q.375.375.363.875t-.388.875t-.875.375t-.875-.375l-7.7-7.675q-.3-.3-.45-.675t-.15-.75t.15-.75t.45-.675l7.7-7.7q.375-.375.888-.363t.887.388t.375.875t-.375.875z"
-                    />
-                </svg>
-                <svg id="next" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-                    <path
-                        fill="currentColor"
-                        d="m14.475 12l-7.35-7.35q-.375-.375-.363-.888t.388-.887t.888-.375t.887.375l7.675 7.7q.3.3.45.675t.15.75t-.15.75t-.45.675l-7.7 7.7q-.375.375-.875.363T7.15 21.1t-.375-.888t.375-.887z"
-                    />
-                </svg>
+                <LeftArrowIcon id="prev" />
+                <a href="https://github.com/SimonDMC/bidirectional-scroll">
+                    <GithubIcon />
+                </a>
+                <RightArrowIcon id="next" />
+            </div>
+            <div className="debug">
+                <div className="debugLine">
+                    x: <span id="xDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    lastOffset: <span id="lastOffsetDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    offset: <span id="offsetDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    middleNum: <span id="internalMiddleNumDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    velocity: <span id="velocityDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    frameId: <span id="animationFrameIdDebug">null</span>
+                </div>
+                <div className="debugLine">
+                    grabIndex: <span id="grabIndexDebug">0</span>
+                </div>
+                <div className="debugLine">
+                    targetOffset: <span id="targetOffsetDebug">0</span>
+                </div>
             </div>
         </>
     );
