@@ -1,0 +1,10 @@
+{
+    "$schema": "./node_modules/wrangler/config-schema.json",
+    "name": "bidirectional-scroll-test",
+    "main": "src/index.js",
+    "compatibility_date": "2026-02-24",
+    "assets": {
+        "directory": "./dist",
+        "binding": "ASSETS",
+    },
+}
