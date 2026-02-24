@@ -7,4 +7,10 @@
         "directory": "./dist",
         "binding": "ASSETS",
     },
+    "routes": [
+        {
+            "pattern": "simondmc.com/bidirectional-scroll*",
+            "zone_name": "simondmc.com",
+        },
+    ],
 }
