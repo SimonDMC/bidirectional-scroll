@@ -95,4 +95,8 @@ a {
   line-height: 1em;
   height: fit-content;
   display: flex;
+
+  &:hover {
+    color: #fff;
+  }
 }
