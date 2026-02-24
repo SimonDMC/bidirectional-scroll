@@ -5,8 +5,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
     plugins: [react()],
     build: {
-        outDir: "dist/bidirectional-scroll-demo",
+        outDir: "dist/bidirectional-scroll",
         emptyOutDir: true,
     },
-    base: "/bidirectional-scroll-demo",
+    base: "/bidirectional-scroll",
 });
