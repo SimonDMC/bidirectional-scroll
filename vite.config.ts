@@ -8,5 +8,5 @@ export default defineConfig({
         outDir: "dist/bidirectional-scroll",
         emptyOutDir: true,
     },
-    base: "/bidirectional-scroll",
+    base: "/bidirectional-scroll/",
 });
