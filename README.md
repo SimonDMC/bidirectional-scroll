@@ -1,6 +1,6 @@
 # Bi-directional Scroll Demo
 
-Demo: https://simondmc.com/bidirectional-scroll-demo
+Demo: https://bidirectional-scroll.simondmc.workers.dev
 
 This project is a showcase/demo of an infinitely scrollable list of items in both directions.
 
