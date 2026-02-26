@@ -20,13 +20,19 @@ function App() {
     // which is exposed) it makes sense for the sake of simplicity and eliminating the
     // performance overhead react hooks impose
     useEffect(() => {
+        // how "hard" you have to swipe to glide to the next item
         const VELOCITY_THRESHOLD = 2.5;
+        // speed of the glide animation
         const SNAP_SPEED = 0.15;
 
         const container = document.getElementById("container")!;
         const center = document.getElementById("center")!;
         const width = center.clientWidth;
-        container.scrollLeft = width * 2;
+
+        // initial scroll offset of the container -- twice the width since there's two
+        // elements on each side of the middle one
+        const BASE_OFFSET = width * 2;
+        container.scrollLeft = BASE_OFFSET;
 
         // x position of current touch start, so we can calculate how much we've moved by
         let x = 0;
@@ -155,11 +161,11 @@ function App() {
                 targetOffset += width;
             }
 
-            container.scrollLeft = width * 2 - lastOffset;
+            container.scrollLeft = BASE_OFFSET - lastOffset;
             updateDebug();
         }
 
-        document.getElementById("prev")!.onclick = () => {
+        function scrollNext() {
             // if arrow is clicked while a swipe animation is already happening, cancel it
             // and start a new one
             if (animationFrameId) {
@@ -169,8 +175,9 @@ function App() {
                 targetOffset = width;
             }
             animateSwipe();
-        };
-        document.getElementById("next")!.onclick = () => {
+        }
+
+        function scrollPrev() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
                 targetOffset -= width;
@@ -178,24 +185,45 @@ function App() {
                 targetOffset = -width;
             }
             animateSwipe();
+        }
+
+        container.onwheel = (e: WheelEvent) => {
+            if ((document.getElementById("notchedToggle") as HTMLInputElement).checked) {
+                // if notched, don't allow horizontal scrolling at all - at least not for this demo;
+                // perhaps it would make sense in another project but not here. too many events
+                // get fired and i don't like the idea of introducing an artificial cooldown
+                e.preventDefault();
+            } else {
+                // update scroll position and shift over items if necessary
+                lastOffset = BASE_OFFSET - container.scrollLeft;
+                calculateOffset();
+            }
         };
 
-        // DEMO-RELEVANT TS ENDS HERE
-
-        container.ontouchstart = (e: TouchEvent) => {
+        function touchstart(e: TouchEvent) {
             // ignore if it's not the first touch point
             if (e.touches.length > 1) return;
             grabstart(e.touches[0].clientX);
-        };
-        container.ontouchmove = (e: TouchEvent) => {
+        }
+
+        function touchmove(e: TouchEvent) {
             e.preventDefault();
             grabmove(e.touches[0].clientX);
-        };
-        container.ontouchend = (e: TouchEvent) => {
+        }
+
+        function touchend(e: TouchEvent) {
             // ignore if it's not the last touch point
             if (e.touches.length > 0) return;
             grabend();
-        };
+        }
+
+        // DEMO-RELEVANT TS ENDS HERE
+
+        // touch listeners specifically have to be added via addEventListener, otherwise they're
+        // not picked up on touchscreen laptops (???)
+        container.addEventListener("touchstart", touchstart);
+        container.addEventListener("touchmove", touchmove);
+        container.addEventListener("touchend", touchend);
 
         // is mouse held down?
         let held = false;
@@ -215,6 +243,9 @@ function App() {
             held = false;
         };
 
+        document.getElementById("prev")!.onclick = scrollNext;
+        document.getElementById("next")!.onclick = scrollPrev;
+
         function updateDebug() {
             document.getElementById("xDebug")!.innerText = x.toFixed(2);
             document.getElementById("lastOffsetDebug")!.innerText = lastOffset.toFixed(2);
@@ -225,6 +256,12 @@ function App() {
             document.getElementById("grabIndexDebug")!.innerText = `${grabIndex}`;
             document.getElementById("targetOffsetDebug")!.innerText = `${targetOffset}`;
         }
+
+        return () => {
+            container.removeEventListener("touchstart", touchstart);
+            container.removeEventListener("touchmove", touchmove);
+            container.removeEventListener("touchend", touchend);
+        };
     }, []);
 
     return (
